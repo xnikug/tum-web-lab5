@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "go2web"
+version = "0.1.0"
+description = "HTTP-over-sockets CLI fetcher and search tool"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Lab 5 Student" }]
+license = { text = "MIT" }
+dependencies = []
+
+[project.scripts]
+go2web = "go2web_app:main"
+
+[tool.setuptools]
+packages = ["go2web_app"]

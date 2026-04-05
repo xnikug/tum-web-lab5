@@ -24,15 +24,15 @@ chmod +x go2web
 ./go2web -s tum web lab sockets
 ```
 
-## Notes
+## Install as package
 
-- No built-in/third-party HTTP request client libraries are used (`requests`, `urllib.request`, etc.).
-- HTTPS is implemented using TLS over sockets (`ssl` + `socket`).
+```bash
+python3 -m pip install --user .
 
-## Demo GIF
+# if go2web is not found, add user bin to PATH
+export PATH="$(python3 -m site --user-base)/bin:$PATH"
 
-Add your demonstration GIF here after recording, for example:
-
-```md
-![go2web demo](docs/go2web-demo.gif)
+go2web -h
+go2web -u https://example.com
+go2web -s tum web lab sockets
 ```
