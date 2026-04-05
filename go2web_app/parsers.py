@@ -46,9 +46,10 @@ class SearchResultsParser(HTMLParser):
         if tag != "a":
             return
         attrs_map = dict(attrs)
-        href = attrs_map.get("href")
-        class_name = attrs_map.get("class") or ""
-        if href and ("result__a" in class_name or "result-link" in class_name):
+        href = attrs_map.get("href", "")
+        # DDG Lite uses class "result-link", older DDG HTML used "result__a"
+        class_name = attrs_map.get("class", "") or ""
+        if href and ("result-link" in class_name or "result__a" in class_name):
             self._capture = True
             self._current_href = href
             self._current_text = []

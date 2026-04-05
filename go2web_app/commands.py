@@ -38,7 +38,7 @@ def run_search_mode(search_terms: list[str]) -> int:
         print("Search term is required")
         return 1
 
-    search_url = f"https://duckduckgo.com/html/?q={quote_plus(query)}"
+    search_url = f"https://lite.duckduckgo.com/lite/?q={quote_plus(query)}"
     client = HttpClient()
 
     try:
