@@ -1,7 +1,9 @@
 import socket
 import ssl
 from typing import Dict, List, Tuple
+from urllib import response
 from urllib.parse import urljoin, urlparse
+import hashlib, json, os, time
 
 from .models import HttpResponse
 
@@ -9,13 +11,42 @@ from .models import HttpResponse
 USER_AGENT = "go2web/1.0 (+lab5)"
 DEFAULT_TIMEOUT = 15
 MAX_REDIRECTS = 5
-
+CACHE_DIR = os.path.expanduser("~/.go2web_cache")
+CACHE_TTL = 300  # seconds
 
 class HttpClient:
     def __init__(self, timeout: int = DEFAULT_TIMEOUT) -> None:
         self.timeout = timeout
 
+    def _cache_path(self, url):
+        key = hashlib.md5(url.encode()).hexdigest()
+        return os.path.join(CACHE_DIR, key)
+
+    def _load_cache(self, url):
+        path = self._cache_path(url)
+        if not os.path.exists(path):
+            return None
+        with open(path, "rb") as f:
+            data = json.loads(f.read())
+        if time.time() - data["ts"] > CACHE_TTL:
+            return None
+        r = data["response"]
+        return HttpResponse(r["status_code"], r["reason"], r["headers"], bytes(r["body"]), r["url"])
+
+    def _save_cache(self, url, response):
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        data = {"ts": time.time(), "response": {
+            "status_code": response.status_code, "reason": response.reason,
+            "headers": response.headers, "body": list(response.body), "url": response.url
+        }}
+        with open(self._cache_path(url), "wb") as f:
+            f.write(json.dumps(data).encode())
+
     def get(self, url: str, accept: str = "text/html,application/json", redirects: int = MAX_REDIRECTS) -> HttpResponse:
+        cached = self._load_cache(url)
+        if cached:
+            return cached
+
         if redirects < 0:
             raise RuntimeError("Too many redirects")
 
@@ -51,7 +82,9 @@ class HttpClient:
             next_url = urljoin(url, location)
             return self.get(next_url, accept=accept, redirects=redirects - 1)
 
-        return HttpResponse(status_code=status_code, reason=reason, headers=headers, body=body, url=url)
+        response = HttpResponse(status_code=status_code, reason=reason, headers=headers, body=body, url=url)
+        self._save_cache(url, response)
+        return response
 
     def _send_request(self, host: str, port: int, use_ssl: bool, request: bytes) -> bytes:
         with socket.create_connection((host, port), timeout=self.timeout) as sock:
