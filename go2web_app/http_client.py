@@ -1,7 +1,6 @@
 import socket
 import ssl
-from typing import Dict, List, Tuple
-from urllib import response
+from typing import Dict, List, Optional, Tuple
 from urllib.parse import urljoin, urlparse
 import hashlib, json, os, time
 
@@ -42,13 +41,22 @@ class HttpClient:
         with open(self._cache_path(url), "wb") as f:
             f.write(json.dumps(data).encode())
 
-    def get(self, url: str, accept: str = "text/html,application/json", redirects: int = MAX_REDIRECTS) -> HttpResponse:
+    def get(
+        self,
+        url: str,
+        accept: str = "text/html,application/json",
+        redirects: int = MAX_REDIRECTS,
+        extra_headers: Optional[Dict[str, str]] = None,
+    ) -> HttpResponse:
         cached = self._load_cache(url)
         if cached:
             return cached
 
         if redirects < 0:
             raise RuntimeError("Too many redirects")
+
+        if not urlparse(url).scheme:
+            url = f"https://{url}"
 
         parsed = urlparse(url)
         if parsed.scheme not in {"http", "https"}:
@@ -63,14 +71,18 @@ class HttpClient:
         if parsed.query:
             path = f"{path}?{parsed.query}"
 
-        request = (
-            f"GET {path} HTTP/1.1\r\n"
-            f"Host: {host}\r\n"
-            f"User-Agent: {USER_AGENT}\r\n"
-            f"Accept: {accept}\r\n"
-            "Connection: close\r\n"
-            "\r\n"
-        ).encode("utf-8")
+        header_lines = [
+            f"GET {path} HTTP/1.1",
+            f"Host: {host}",
+            f"User-Agent: {USER_AGENT}",
+            f"Accept: {accept}",
+            "Connection: close",
+        ]
+        if extra_headers:
+            for key, value in extra_headers.items():
+                header_lines.append(f"{key}: {value}")
+
+        request = ("\r\n".join(header_lines) + "\r\n\r\n").encode("utf-8")
 
         raw = self._send_request(host=host, port=port, use_ssl=(parsed.scheme == "https"), request=request)
         status_code, reason, headers, body = self._parse_http_response(raw)
@@ -80,7 +92,7 @@ class HttpClient:
             if not location:
                 raise RuntimeError("Redirect response missing Location header")
             next_url = urljoin(url, location)
-            return self.get(next_url, accept=accept, redirects=redirects - 1)
+            return self.get(next_url, accept=accept, redirects=redirects - 1, extra_headers=extra_headers)
 
         response = HttpResponse(status_code=status_code, reason=reason, headers=headers, body=body, url=url)
         self._save_cache(url, response)
