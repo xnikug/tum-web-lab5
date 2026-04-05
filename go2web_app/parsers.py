@@ -46,10 +46,13 @@ class SearchResultsParser(HTMLParser):
         if tag != "a":
             return
         attrs_map = dict(attrs)
-        href = attrs_map.get("href", "")
-        # DDG Lite uses class "result-link", older DDG HTML used "result__a"
+        href = attrs_map.get("href") or ""
+        # DDG HTML variants use class "result__a" or DDG redirect links (/l/?uddg=...)
         class_name = attrs_map.get("class", "") or ""
-        if href and ("result-link" in class_name or "result__a" in class_name):
+        is_result_anchor = "result__a" in class_name or "result-link" in class_name
+        is_ddg_redirect = "duckduckgo.com/l/" in href or href.startswith("/l/?")
+
+        if href and (is_result_anchor or is_ddg_redirect):
             self._capture = True
             self._current_href = href
             self._current_text = []
